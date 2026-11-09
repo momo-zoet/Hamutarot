@@ -1,4 +1,4 @@
-# 🐹 Tarotarot - 鼠鼠占卜
+# 🐹 Hamutarot - 鼠鼠占卜
 
 倉鼠塔羅小工具，純靜態網站（HTML / CSS / JS），不需要建置，可直接放 GitHub Pages。
 

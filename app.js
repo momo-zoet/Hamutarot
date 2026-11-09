@@ -125,6 +125,8 @@
 
   const fill = (t, k) => t.replace(/\{(\d)\}/g, (_, i) => k[Number(i)]);
   const pickOne = (arr, n) => arr[n % arr.length];
+  // 語氣是否偏順：一般牌正位偏順；沉重的牌（高塔、死神…）正位偏吃力、逆位反而是緩解
+  const isGood = (card, rev) => HARD_CARDS.has(card.en) ? rev : !rev;
 
   /* ---------- 工具 ---------- */
   function hash(str) {
@@ -137,6 +139,19 @@
     h = Math.imul(h, 2246822507) >>> 0;
     h ^= h >>> 13;
     return h >>> 0;
+  }
+
+  let deviceCache = null;
+  function deviceId() {
+    if (deviceCache) return deviceCache;
+    let id = storeGet('tarotarot:device');
+    if (!id) {
+      id = Array.from(randInts(3)).map(n => n.toString(36)).join('');
+      storeSet('tarotarot:device', id);
+      if (storeGet('tarotarot:device') !== id) id = 'shared'; // 無法儲存時退回「大家同一張」
+    }
+    deviceCache = id;
+    return id;
   }
 
   function todayKey() {
@@ -224,7 +239,7 @@
       card: CARDS[hash('tarotarot:' + key) % CARDS.length],
       rev,
       snack: SNACKS[hash('snack:' + key) % SNACKS.length],
-      luck: rev ? 1 + luckBase : 3 + luckBase,
+      luck: isGood(CARDS[hash('tarotarot:' + key) % CARDS.length], rev) ? 3 + luckBase : 1 + luckBase,
       tipIdx: hash('tip:' + key)
     };
   }
@@ -234,7 +249,7 @@
     const d = new Date();
     $('#daily-date').textContent = d.getFullYear() + ' 年 ' + (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日　今天鼠鼠為你抽的牌';
 
-    const draw = dailyDraw(key);
+    const draw = dailyDraw(key + ':' + deviceId());
     const stage = $('#daily-stage');
     const result = $('#daily-result');
     const wrap = el('div', 'card-wrap');
@@ -255,19 +270,20 @@
       storeSet('tarotarot:daily:' + key, '1');
       const kw = draw.rev ? draw.card.rev : draw.card.up;
       const line = draw.rev ? draw.card.revLine : draw.card.upLine;
-      const tip = pickOne(draw.rev ? DAILY_TIPS.rev : DAILY_TIPS.up, draw.tipIdx);
+      const tip = pickOne(isGood(draw.card, draw.rev) ? DAILY_TIPS.up : DAILY_TIPS.rev, draw.tipIdx);
+      const act = draw.rev ? draw.card.actRev : draw.card.actUp;
       const stars = '🌻'.repeat(draw.luck) + '▫️'.repeat(5 - draw.luck);
       result.innerHTML =
         '<div class="caption" style="margin:0 0 6px">' + captionHTML(draw.card, draw.rev) + '</div>' +
         chips(kw) +
         '<p>' + line + '</p>' +
-        '<div class="tip">🐹 鼠鼠今日叮嚀：' + tip + '</div>' +
+        '<div class="tip">🐹 今日行動：' + act + '<br>鼠鼠叮嚀：' + tip + '</div>' +
         '<div class="meta"><span>今日幸運指數　' + stars + '</span><span>幸運零食　' + draw.snack + '</span></div>' +
         '<div class="actions"><button class="ghost" id="daily-copy">複製今日結果</button></div>';
       result.hidden = false;
       $('#daily-copy').addEventListener('click', () => copyText(
         '【鼠鼠占卜・今日運勢】' + draw.card.zh + '（' + draw.card.en + '）' + (draw.rev ? '逆位' : '正位') + '\n' +
-        kw.join('、') + '\n' + line + '\n鼠鼠叮嚀：' + tip + '\n幸運指數：' + draw.luck + '/5　幸運零食：' + draw.snack,
+        kw.join('、') + '\n' + line + '\n今日行動：' + act + '\n鼠鼠叮嚀：' + tip + '\n幸運指數：' + draw.luck + '/5　幸運零食：' + draw.snack,
         $('#daily-copy')));
     }
 
@@ -341,8 +357,11 @@
     const t = TOPICS[key];
     const kw = rev ? card.rev : card.up;
     const line = rev ? card.revLine : card.upLine;
-    const bridge = fill(pickOne(rev ? t.rev : t.up, variant), kw);
-    const tip = pickOne(rev ? t.tipRev : t.tipUp, variant >>> 3);
+    const good = isGood(card, rev);
+    const bridge = fill(pickOne(good ? t.up : t.rev, variant), kw);
+    const tip = pickOne(good ? t.tipUp : t.tipRev, variant >>> 3);
+    const lens = LENS[key][card.arcana][rev ? 'rev' : 'up'];
+    const act = rev ? card.actRev : card.actUp;
 
     $('#deck-step').hidden = true;
     $('#result-step').hidden = false;
@@ -362,7 +381,8 @@
       chips(kw) +
       '<p>' + line + '</p>' +
       '<p>' + bridge + '</p>' +
-      '<div class="tip">🐹 鼠鼠小叮嚀：' + tip + '</div>' +
+      '<p>' + lens + '</p>' +
+      '<div class="tip">🐹 具體做法：' + act + '<br>鼠鼠小叮嚀：' + tip + '</div>' +
       '<div class="actions">' +
       '<button class="primary" id="again">再問一次</button>' +
       '<button class="ghost" id="other">換個主題</button>' +
@@ -371,7 +391,7 @@
     $('#other').addEventListener('click', showTopics);
     $('#copy').addEventListener('click', () => copyText(
       '【鼠鼠占卜・' + t.name + '】' + card.zh + '（' + card.en + '）' + (rev ? '逆位' : '正位') + '\n' +
-      kw.join('、') + '\n' + line + '\n' + bridge + '\n鼠鼠小叮嚀：' + tip,
+      kw.join('、') + '\n' + line + '\n' + bridge + '\n' + lens + '\n具體做法：' + act + '\n鼠鼠小叮嚀：' + tip,
       $('#copy')));
   }
 
@@ -467,10 +487,10 @@
     }
   };
   const SUMMARY = {
-    3: '三張牌都是正位，整體是順風局，踏實往前走就會有好結果。',
-    2: '三張牌大多是正位，整體偏順，留意逆位那張提醒的地方就好。',
-    1: '三張牌裡只有一張正位，這段時間需要多一點耐心與調整。',
-    0: '三張牌都是逆位，代表現在是重新整理的階段，先放慢，把事情看清楚再行動。'
+    3: '三張牌的走向都偏順，整體是順風局，踏實往前走就會有好結果。',
+    2: '三張牌大多偏順，整體不錯，留意比較吃力的那張所提醒的地方就好。',
+    1: '三張牌裡只有一張偏順，這段時間需要多一點耐心與調整。',
+    0: '三張牌都偏吃力，代表現在是重新整理的階段，先放慢，把事情看清楚再行動。'
   };
 
   function detectTopic(q) {
@@ -481,6 +501,34 @@
       if (n > bestN) { best = k; bestN = n; }
     });
     return best || 'general';
+  }
+
+  // 擴充關鍵字，讓主題判斷更準
+  KEYWORDS.love = new RegExp(KEYWORDS.love.source + '|心意|在意|挽回|對象|新戀情', 'g');
+  KEYWORDS.career = new RegExp(KEYWORDS.career.source + '|求職|應徵|找工作|履歷|轉行|辭職', 'g');
+  KEYWORDS.study = new RegExp(KEYWORDS.study.source + '|研究所|推甄|選系|測驗|複習', 'g');
+  KEYWORDS.money = new RegExp(KEYWORDS.money.source + '|基金|買車|存錢|接案|加密', 'g');
+
+  function detectScenario(topicKey, q) {
+    const list = SCEN[topicKey];
+    if (!list || !q) return null;
+    let best = null, bestN = 0;
+    list.forEach(s => {
+      const m = q.match(new RegExp(s.re, 'g'));
+      const n = m ? m.length : 0;
+      if (n > bestN) { best = s; bestN = n; }
+    });
+    return best;
+  }
+
+  // 正位 +1、逆位 -1；沉重的牌正位 -1、逆位 0；未來那張權重加倍
+  function tone(p) {
+    const hard = HARD_CARDS.has(p.card.en);
+    return hard ? (p.rev ? 0 : -1) : (p.rev ? -1 : 1);
+  }
+  function flowLevel(picks) {
+    const s = tone(picks[0]) + tone(picks[1]) + 2 * tone(picks[2]);
+    return s >= 2 ? 'hi' : (s <= -1 ? 'lo' : 'mid');
   }
 
   function drawThree() {
@@ -523,12 +571,13 @@
     function showFlow(question, topicKey) {
       const t = topicKey === 'general' ? GENERAL : TOPICS[topicKey];
       const picks = drawThree();
+      const scen = detectScenario(topicKey, question);
       ask.hidden = true;
       out.hidden = false;
       out.innerHTML = '';
 
       const echo = el('div', 'q-echo',
-        (question ? '你的問題：<b></b>' : '<b>整體運勢</b>') + '<br>鼠鼠判斷類型：' + t.icon + ' ' + t.name);
+        (question ? '你的問題：<b></b>' : '<b>整體運勢</b>') + '<br>鼠鼠判斷類型：' + t.icon + ' ' + t.name + (scen ? '・' + scen.name : ''));
       if (question) echo.querySelector('b').textContent = question;
       out.appendChild(echo);
 
@@ -555,32 +604,40 @@
         const pos = POS[i];
         const kw = p.rev ? p.card.rev : p.card.up;
         const line = p.rev ? p.card.revLine : p.card.upLine;
-        const frame = fill(pickOne(POS_TPL[pos.key][p.rev ? 'rev' : 'up'], p.v), kw).replace(/\{t\}/g, t.name);
+        const frame = scen
+          ? fill(scen[pos.key][isGood(p.card, p.rev) ? 'up' : 'rev'], kw)
+          : fill(pickOne(POS_TPL[pos.key][isGood(p.card, p.rev) ? 'up' : 'rev'], p.v), kw).replace(/\{t\}/g, t.name);
+        const lens = LENS[topicKey][p.card.arcana][p.rev ? 'rev' : 'up'];
+        const act = p.rev ? p.card.actRev : p.card.actUp;
         const box = el('div', 'result pos-result',
           '<h3>' + pos.label + '・' + pos.sub + '</h3>' +
           '<div class="caption" style="text-align:left;margin:0 0 4px">' + captionHTML(p.card, p.rev) + '</div>' +
-          chips(kw) + '<p>' + frame + '</p><p>' + line + '</p>');
+          chips(kw) + '<p>' + frame + '</p><p>' + line + '</p><p>' + lens + '</p>' +
+          '<div class="tip">具體做法：' + act + '</div>');
         out.appendChild(box);
-        textLines.push(pos.label + '：' + p.card.zh + (p.rev ? '逆位' : '正位') + '\n' + frame + line);
+        textLines.push(pos.label + '：' + p.card.zh + (p.rev ? '逆位' : '正位') + '\n' + frame + line + lens + '\n具體做法：' + act);
       });
 
-      const ups = picks.filter(p => !p.rev).length;
+      const ups = picks.filter(p => isGood(p.card, p.rev)).length;
       let trend = '';
-      if (picks[0].rev && !picks[2].rev) trend = '從過去走向未來有明顯好轉的趨勢，時間站在你這邊。';
-      else if (!picks[0].rev && picks[2].rev) trend = '目前的順利是基礎，但別鬆懈，未來有需要留意的地方。';
+      if (!isGood(picks[0].card, picks[0].rev) && isGood(picks[2].card, picks[2].rev)) trend = '從過去走向未來有明顯好轉的趨勢，時間站在你這邊。';
+      else if (isGood(picks[0].card, picks[0].rev) && !isGood(picks[2].card, picks[2].rev)) trend = '目前的順利是基礎，但別鬆懈，未來有需要留意的地方。';
       const last = picks[2];
-      const tipPool = last.rev ? t.tipRev : t.tipUp;
-      const tip = tipPool && tipPool.length ? pickOne(tipPool, last.v >>> 3) : pickOne(last.rev ? DAILY_TIPS.rev : DAILY_TIPS.up, last.v >>> 3);
-      const sum = SUMMARY[ups] + (ups === 1 || ups === 2 ? trend : '');
+      const tipPool = isGood(last.card, last.rev) ? t.tipUp : t.tipRev;
+      const tip = tipPool && tipPool.length ? pickOne(tipPool, last.v >>> 3) : pickOne(isGood(last.card, last.rev) ? DAILY_TIPS.up : DAILY_TIPS.rev, last.v >>> 3);
+      let sum;
+      if (scen) sum = '針對「' + scen.name + '」，鼠鼠的看法是：' + scen.verdict[flowLevel(picks)] + trend;
+      else sum = SUMMARY[ups] + (ups === 1 || ups === 2 ? trend : '');
+      const nextStep = last.rev ? last.card.actRev : last.card.actUp;
       const sumBox = el('div', 'result summary',
-        '<h3>鼠鼠總結</h3><p>' + sum + '</p><div class="tip">🐹 小叮嚀：' + tip + '</div>' +
+        '<h3>鼠鼠總結</h3><p>' + sum + '</p><div class="tip">🐹 下一步：' + nextStep + '<br>小叮嚀：' + tip + '</div>' +
         '<div class="actions"><button class="primary" id="flow-again">再占卜一次</button>' +
         '<button class="ghost" id="flow-copy">複製結果</button></div>');
       out.appendChild(sumBox);
 
       $('#flow-again').addEventListener('click', () => { out.hidden = true; ask.hidden = false; window.scrollTo({ top: 0, behavior: 'smooth' }); });
       $('#flow-copy').addEventListener('click', () => copyText(
-        '【鼠鼠占卜・時間之流】' + (question ? '\n問題：' + question : '') + '\n' + textLines.join('\n\n') + '\n\n總結：' + sum + '\n小叮嚀：' + tip,
+        '【鼠鼠占卜・時間之流】' + (question ? '\n問題：' + question : '') + '\n' + textLines.join('\n\n') + '\n\n總結：' + sum + '\n下一步：' + nextStep + '\n小叮嚀：' + tip,
         $('#flow-copy')));
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
