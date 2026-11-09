@@ -9,7 +9,7 @@
     return e;
   };
 
-  const ICON = { major: '🌟', wands: '🔥', cups: '🍵', swords: '⚔️', pentacles: '🥜' };
+  const ICON = { major: '🌟', wands: '🔥', cups: '💧', swords: '⚔️', pentacles: '✨' };
   const SUIT_NAME = { major: '大阿爾克那', wands: '權杖', cups: '聖杯', swords: '寶劍', pentacles: '錢幣' };
   const REVERSED_CHANCE = 1 / 2; // 逆位出現機率
   const SNACKS = ['葵花子', '南瓜子', '花生', '起司丁', '小黃瓜片', '蘋果片', '燕麥片', '胡蘿蔔', '玉米粒', '核桃'];
