@@ -29,6 +29,22 @@ images/King of Cups.png
 - GitHub Pages 的檔名**區分大小寫**，請完全照上面的拼法（每個單字開頭大寫，`of` 小寫）。
 - 圖片建議比例約 7:12，寬約 600～800 像素就夠，單張最好壓到 300KB 以下（可用 TinyPNG 壓縮）。圖片越小，翻牌越快。
 
+## 圖片太大、載入太慢？先轉成 WebP
+
+網站每張牌最寬只顯示約 220px，原圖不需要那麼大。用 `tools/optimize_images.py` 一次轉好：
+
+```
+pip install pillow
+python tools/optimize_images.py 原圖資料夾
+```
+
+會在 `images/` 產生：
+- `牌名.webp`：主圖（寬 600px，通常只有幾十 KB）
+- `thumb/牌名.webp`：牌庫縮圖（寬 200px）
+
+網站會**優先讀 WebP**，找不到才讀同名的 `.png`，所以兩種格式混著放也沒問題。轉完整個 `images/` 通常只有幾 MB，GitHub 網頁也能直接上傳。
+牌背請命名為 `back.png` 一起轉換。
+
 ## 部署到 GitHub Pages
 
 1. 把整個資料夾推到一個 GitHub repo。

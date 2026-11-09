@@ -174,11 +174,15 @@
   const backImg = new Image();
   let backReady = false;
   backImg.onload = () => { backReady = true; document.querySelectorAll('.face.back').forEach(applyBack); };
-  backImg.src = 'images/back.png';
+  let backUrl = 'images/back.webp';
+  backImg.onerror = () => {
+    if (backUrl === 'images/back.webp') { backUrl = 'images/back.png'; backImg.src = backUrl; }
+  };
+  backImg.src = backUrl;
 
   function applyBack(node) {
     if (!backReady) return;
-    node.style.backgroundImage = 'url("images/back.png")';
+    node.style.backgroundImage = 'url("' + backUrl + '")';
     node.textContent = '';
   }
 
@@ -199,9 +203,17 @@
     if (lazy) img.loading = 'lazy';
     let done;
     const ready = new Promise(r => { done = r; });
+    // 圖片來源依序嘗試：WebP（牌庫用縮圖）→ 原本的 PNG
+    const base = 'images/' + card.en;
+    const srcs = lazy ? ['images/thumb/' + card.en + '.webp', base + '.webp', base + '.png'] : [base + '.webp', base + '.png'];
+    let k = 0;
     img.onload = () => { ph.style.display = 'none'; done(); };
-    img.onerror = () => { img.remove(); done(); };
-    img.src = encodeURI(card.img);
+    img.onerror = () => {
+      k++;
+      if (k < srcs.length) img.src = encodeURI(srcs[k]);
+      else { img.remove(); done(); }
+    };
+    img.src = encodeURI(srcs[0]);
     inner.appendChild(img);
     front.appendChild(inner);
     wrap.append(back, front);
