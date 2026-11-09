@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Tarotarot - 鼠鼠占卜</title>
+  <meta name="description" content="倉鼠塔羅小工具：每日運勢與一張牌占卜">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Huninn&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Tarotarot <small>鼠鼠占卜</small></h1>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="daily">今日運勢</button>
+      <button class="tab" data-tab="reading">一張牌占卜</button>
+      <button class="tab" data-tab="flow">時間之流</button>
+      <button class="tab" data-tab="library">牌庫</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="daily" class="panel active">
+      <p class="hint" id="daily-date"></p>
+      <div id="daily-stage" class="stage"></div>
+      <div id="daily-result" class="result" hidden></div>
+    </section>
+
+    <section id="reading" class="panel">
+      <div id="topic-step">
+        <p class="hint">想問鼠鼠什麼呢？選一個主題，專心想著問題，再抽一張牌。</p>
+        <div id="topics" class="topics"></div>
+      </div>
+      <div id="deck-step" hidden>
+        <p class="hint" id="deck-hint"></p>
+        <div id="deck" class="deck"></div>
+        <button class="ghost" id="deck-back">← 換個主題</button>
+      </div>
+      <div id="result-step" hidden>
+        <div id="reading-stage" class="stage"></div>
+        <div id="reading-result" class="result"></div>
+      </div>
+    </section>
+
+    <section id="flow" class="panel">
+      <div id="flow-ask">
+        <p class="hint">寫下你想問的事，鼠鼠用「過去・現在・未來」三張牌為你解讀。</p>
+        <div class="ask-box">
+          <textarea id="flow-q" maxlength="300" rows="4" placeholder="輸入你的問題，或點下方的一個（也可以留空，直接問整體運勢）"></textarea>
+          <div class="ask-count"><span id="flow-count">0</span>/300</div>
+        </div>
+        <div id="flow-samples" class="samples"></div>
+        <div class="ask-topic">
+          <label for="flow-topic">問題類型</label>
+          <select id="flow-topic"></select>
+        </div>
+        <div class="actions"><button class="primary" id="flow-go">開始占卜</button></div>
+      </div>
+      <div id="flow-out" hidden></div>
+    </section>
+
+    <section id="library" class="panel">
+      <div id="filters" class="filters"></div>
+      <div id="grid" class="grid"></div>
+    </section>
+  </main>
+
+  <div id="modal" class="modal" hidden>
+    <div class="modal-body">
+      <button id="modal-close" class="modal-close" aria-label="關閉">✕</button>
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+  <footer>僅供娛樂與自我反思，不能取代專業建議。</footer>
+
+  <script src="cards.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
