@@ -167,7 +167,7 @@
     node.textContent = '';
   }
 
-  function cardNode(card, rev, flipped) {
+  function cardNode(card, rev, flipped, lazy) {
     const wrap = el('div', 'card' + (flipped ? ' flipped' : ''));
     const back = el('div', 'face back', '🐹');
     applyBack(back);
@@ -180,13 +180,17 @@
     inner.appendChild(ph);
     const img = new Image();
     img.alt = card.zh + '（' + card.en + '）';
-    img.loading = 'lazy';
-    img.onload = () => { ph.style.display = 'none'; };
-    img.onerror = () => { img.remove(); };
+    img.decoding = 'async';
+    if (lazy) img.loading = 'lazy';
+    let done;
+    const ready = new Promise(r => { done = r; });
+    img.onload = () => { ph.style.display = 'none'; done(); };
+    img.onerror = () => { img.remove(); done(); };
     img.src = encodeURI(card.img);
     inner.appendChild(img);
     front.appendChild(inner);
     wrap.append(back, front);
+    wrap.ready = ready;
     return wrap;
   }
 
@@ -194,6 +198,12 @@
     return '<b>' + card.zh + '</b><span>' + card.en + '</span>' +
       '<span class="tag' + (rev ? ' rev' : '') + '">' + (rev ? '逆位' : '正位') + '</span>';
   }
+
+  // 等圖片載好再翻牌（最多等 ms 毫秒，避免網路太慢卡住）
+  const whenReady = (nodes, ms) => Promise.race([
+    Promise.all(nodes.map(n => n.ready)),
+    new Promise(r => setTimeout(r, ms))
+  ]);
 
   const chips = (kw) => '<div class="chips">' + kw.map(k => '<span class="chip">' + k + '</span>').join('') + '</div>';
 
@@ -237,8 +247,9 @@
     const hint = el('p', 'hint', '點一下牌，翻開今天的運勢 ✨');
     stage.parentNode.insertBefore(hint, result);
 
-    function reveal() {
-      node.classList.add('flipped');
+    function reveal(instant) {
+      if (instant) node.classList.add('flipped');
+      else whenReady([node], 4000).then(() => node.classList.add('flipped'));
       hint.hidden = true;
       btn.disabled = true;
       storeSet('tarotarot:daily:' + key, '1');
@@ -260,10 +271,10 @@
         $('#daily-copy')));
     }
 
-    btn.addEventListener('click', reveal);
+    btn.addEventListener('click', () => reveal(false));
     if (storeGet('tarotarot:daily:' + key)) {
       node.style.transition = 'none';
-      reveal();
+      reveal(true);
       requestAnimationFrame(() => { node.style.transition = ''; });
     }
   }
@@ -342,7 +353,7 @@
     const node = cardNode(card, rev, false);
     wrap.appendChild(node);
     stage.appendChild(wrap);
-    setTimeout(() => node.classList.add('flipped'), 60);
+    whenReady([node], 4000).then(() => setTimeout(() => node.classList.add('flipped'), 60));
 
     const result = $('#reading-result');
     result.innerHTML =
@@ -376,7 +387,7 @@
       CARDS.filter(c => active === 'all' || c.arcana === active).forEach(card => {
         const b = el('button', 'thumb');
         const wrap = el('div', 'card flipped');
-        const n = cardNode(card, false, true);
+        const n = cardNode(card, false, true, true);
         n.style.transition = 'none';
         b.appendChild(n);
         b.appendChild(el('div', 't-name', card.zh));
@@ -535,7 +546,9 @@
         nodes.push(node);
       });
       out.appendChild(row);
-      nodes.forEach((n, i) => setTimeout(() => n.classList.add('flipped'), 300 + i * 600));
+      whenReady(nodes, 5000).then(() => {
+        nodes.forEach((n, i) => setTimeout(() => n.classList.add('flipped'), 200 + i * 600));
+      });
 
       const textLines = [];
       picks.forEach((p, i) => {
